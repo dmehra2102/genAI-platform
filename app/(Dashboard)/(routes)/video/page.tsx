@@ -2,31 +2,26 @@
 
 import * as z from "zod";
 import Heading from "@/components/Heading";
-import { Code } from "lucide-react";
+import { Video } from "lucide-react";
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
-import { cn } from "@/lib/utils";
 import { useForm } from "react-hook-form";
 import { formSchema } from "./constant";
 import { useRouter } from "next/navigation";
-import { ChatCompletionResponseMessage } from "openai";
 import axios from "axios";
 import Empty from "@/components/Empty";
 import Loader from "@/components/Loader";
-import UserAvatar from "@/components/UserAvatar";
-import BotAvatar from "@/components/BotAvatar";
-import ReactMarkdown from "react-markdown";
 import { useProModal } from "@/hooks/useProModal";
 
 type Props = {};
 
-const CodeGenerationPage = (props: Props) => {
+const VideoPage = (props: Props) => {
   const router = useRouter();
   const { onOpen } = useProModal();
-  const [messages, setMessages] = useState<ChatCompletionResponseMessage[]>([]);
+  const [video, setVideo] = useState<string>();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -39,19 +34,11 @@ const CodeGenerationPage = (props: Props) => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const userMessage: ChatCompletionResponseMessage = {
-        role: "user",
-        content: values.prompt,
-      };
+      setVideo(undefined);
 
-      const newMessages = [...messages, userMessage];
+      const response = await axios.post("/api/video", values);
 
-      const response = await axios.post("/api/code", {
-        messages: newMessages,
-      });
-
-      setMessages((current) => [...current, userMessage, response.data]);
-
+      setVideo(response.data[0]);
       // This will reset the form back to empty after response
       form.reset();
     } catch (error: any) {
@@ -66,11 +53,11 @@ const CodeGenerationPage = (props: Props) => {
   return (
     <div>
       <Heading
-        title="Code Generation"
-        description="Generate code using descriptive text."
-        icon={Code}
-        iconColor="text-green-700"
-        bgColor="bg-green-700/10"
+        title="Video Generation"
+        description="Turn your prompt into video."
+        icon={Video}
+        iconColor="text-orange-700"
+        bgColor="bg-orange-700/10"
       />
       <div className="px-4 lg:px-8">
         <div>
@@ -98,7 +85,7 @@ const CodeGenerationPage = (props: Props) => {
                       <Input
                         className="border-0 outline-none focus-visible:ring-0 focus-visible:ring-transparent"
                         disabled={isLoading}
-                        placeholder="How to create a simple toggle button using react hooks ?"
+                        placeholder="Clown fish swimming around a coral reef"
                         {...field}
                       />
                     </FormControl>
@@ -116,44 +103,20 @@ const CodeGenerationPage = (props: Props) => {
             </form>
           </Form>
         </div>
-        <div className="space-y-4 my-4 py-4">
-          {messages.length === 0 && !isLoading && (
-            <Empty label="No conversation started." />
-          )}
-          <div className="flex flex-col gap-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.content}
-                className={cn(
-                  "px-8 py-4 w-full flex items-start gap-x-8 rounded-lg",
-                  message.role === "user"
-                    ? "bg-slate-50 border border-black/10"
-                    : "bg-muted"
-                )}
-              >
-                {message.role === "user" ? <UserAvatar /> : <BotAvatar />}
-                <ReactMarkdown
-                  components={{
-                    pre: ({ node, ...props }) => (
-                      <div className="overflow-auto w-full my-2 bg-black/10 p-2 rounded-lg">
-                        <pre {...props} />
-                      </div>
-                    ),
-                    code: ({ node, ...props }) => (
-                      <code className="bg-black/10 rounded-lg p-1" {...props} />
-                    ),
-                  }}
-                  className="text-sm overflow-hidden leading-7"
-                >
-                  {message.content || ""}
-                </ReactMarkdown>
-              </div>
-            ))}
-          </div>
+        <div className="space-y-4 my-8 pb-4">
           {isLoading && (
             <div className="p-8 rounded-lg w-full flex items-center justify-center bg-muted">
               <Loader />
             </div>
+          )}
+          {!video && !isLoading && <Empty label="No video generated." />}
+          {video && (
+            <video
+              controls
+              className="w-full aspect-video rounded-lg border bg-black mt-4"
+            >
+              <source src={video} />
+            </video>
           )}
         </div>
       </div>
@@ -161,4 +124,4 @@ const CodeGenerationPage = (props: Props) => {
   );
 };
 
-export default CodeGenerationPage;
+export default VideoPage;

@@ -1,11 +1,7 @@
 import { checkApiLimit, increaseApiLimit } from "@/lib/api-limit";
 import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
-import {
-  ChatCompletionResponseMessage,
-  Configuration,
-  OpenAIApi,
-} from "openai";
+import { Configuration, OpenAIApi } from "openai";
 
 const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
@@ -13,17 +9,11 @@ const configuration = new Configuration({
 
 const openai = new OpenAIApi(configuration);
 
-const instructionMessage: ChatCompletionResponseMessage = {
-  role: "system",
-  content:
-    "You are a code generator. You must answer only in markdown code snippets. Use code comments for explanations.",
-};
-
 export async function POST(req: Request) {
   try {
     const { userId } = auth();
     const body = await req.json();
-    const { messages } = body;
+    const { prompt, amount = 1, resolution = "512x512" } = body;
 
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
@@ -35,8 +25,16 @@ export async function POST(req: Request) {
       });
     }
 
-    if (!messages) {
-      return new NextResponse("Messages are required", { status: 400 });
+    if (!prompt) {
+      return new NextResponse("Prompt is required", { status: 400 });
+    }
+
+    if (!amount) {
+      return new NextResponse("Amount is required", { status: 400 });
+    }
+
+    if (!resolution) {
+      return new NextResponse("Resolution is required", { status: 400 });
     }
 
     const freeTrial = await checkApiLimit();
@@ -45,16 +43,17 @@ export async function POST(req: Request) {
       return new NextResponse("Free trial has expired.", { status: 403 });
     }
 
-    const response = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
-      messages: [instructionMessage, ...messages],
+    const response = await openai.createImage({
+      prompt,
+      n: parseInt(amount, 10),
+      size: resolution,
     });
 
     await increaseApiLimit();
 
-    return NextResponse.json(response.data.choices[0].message);
+    return NextResponse.json(response.data.data);
   } catch (error) {
-    console.log("[CODE_ERROR]", error);
+    console.log("[IMAGE_ERROR]", error);
     return new NextResponse("Internal error", { status: 500 });
   }
 }

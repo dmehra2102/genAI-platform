@@ -18,11 +18,13 @@ import Empty from "@/components/Empty";
 import Loader from "@/components/Loader";
 import UserAvatar from "@/components/UserAvatar";
 import BotAvatar from "@/components/BotAvatar";
+import { useProModal } from "@/hooks/useProModal";
 
 type Props = {};
 
 const Conversation = (props: Props) => {
   const router = useRouter();
+  const { onOpen } = useProModal();
   const [messages, setMessages] = useState<ChatCompletionResponseMessage[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -52,7 +54,9 @@ const Conversation = (props: Props) => {
       // This will reset the form back to empty after response
       form.reset();
     } catch (error: any) {
-      console.log("Getting error", error);
+      if (error?.response?.status === 403) {
+        onOpen();
+      }
     } finally {
       router.refresh();
     }
